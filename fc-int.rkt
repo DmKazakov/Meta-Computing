@@ -1,6 +1,6 @@
 #lang racket
 
-(provide int)
+(provide (all-defined-out))
 
 (define (init-vars vars vals)
   (if (equal? (length vars) (length vals))

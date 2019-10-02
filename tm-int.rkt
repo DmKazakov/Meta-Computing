@@ -1,6 +1,6 @@
 #lang racket
 
-(provide tm-int)
+(provide (all-defined-out))
 
 (define (head list)
   (if (empty? list) `() (car list)))
