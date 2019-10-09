@@ -38,16 +38,14 @@
                   (:= pending (cdr pending))
                   (:= pp (car point))
                   (:= vs (cadr point))
-                  (:= labels (get-labels program))
-                  (:= pps (car labels))
-                  (:= labels (cdr labels))
                   (:= code `(,point))
-                  (goto pps-cond))
+                  (:= labels (get-labels program))
+                  (goto lb-check))
 
-        (pps-cond (if (equal? pp pps) goto pps-end goto pps-body))
-        (pps-body (:= pps (car labels))
+        (lb-check (if (empty? labels) goto lb-error goto pps-cond))
+        (pps-cond (:= pps (car labels))
                   (:= labels (cdr labels))
-                  (goto pps-cond))
+                  (if (equal? pp pps) goto pps-end goto lb-check))
         (pps-end  (:= bb (dict-ref program pps))
                   (goto bb-cond))
         
@@ -93,6 +91,7 @@
                        (goto bb-cond))
 
             (error (return (string-append "Undefined instruction: " (~a type))))
+            (lb-error (return "Something is wrong"))
 
         (bb-end (:= residual (cons (reverse code) residual))
                 (goto pending-cond))

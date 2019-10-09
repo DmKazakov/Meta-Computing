@@ -30,15 +30,22 @@
      (let()
        (for ([assignment assignments])
          (int-assignment assignment scope))
-       (int-jump jump scope blocks))]))
+       (int-jump jump scope blocks))]
+    [_ (error (string-append "Empty block: " (~a label)))]))
 
 (define (int-assignment assignment scope)
   (match assignment
-    [`(:= ,var ,expr) (dict-set! scope var `',(int-expr expr scope))]))
+    [`(:= ,var ,expr) (let()
+                        ;(when (equal? expr `(car pending)) (let() (display var) (display "\n") (display "\n")))
+                        ;(with-handlers ([exn:fail? (lambda (exn) ((printf "~a\n~a\n~a\n~a\n" exn scope var expr) (error ":(")))])
+                          (dict-set! scope var `',(int-expr expr scope)))]
+    [_ (error (string-append "Not an assignment: " (~a assignment)))]))
 
 (define (int-expr expr scope)
   (define e (subst expr scope))
-  (eval e))
+  (with-handlers ([exn:fail? (lambda (exn) ((printf "~a\n~a\n~a\n~a\n\n" exn expr e scope)
+                                            (error (~a expr))))])
+    (eval e)))
 
 (define (subst expr scope)
   (match expr
