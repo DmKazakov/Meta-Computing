@@ -15,7 +15,7 @@
                      (1 right)
                      (2 goto 0)
                      (3 write 1)))
-#|
+
 (define futamura1-tm (eval '(int mix `(,tm-int (right_tape left_tape) ((instrs) (,tm-example)))) ns))
 (eval '(int futamura1-tm `((1 1 0 1 1 0 1))) ns)
 
@@ -24,14 +24,9 @@
                                        ((program division) (,tm-int (right_tape left_tape))))) ns))
 (define target-tm (eval '(int futamura2-tm `(((instrs) (,tm-example)))) ns))
 (eval '(int target-tm `((1 1 0 1 1 0 1))) ns)
-|#
-(define futamura3-tm (eval '(int mix `(,mix
-                                       (vs0 pending marked residual point pp vs code live-then live-else q)
-                                       ((program division) (,mix (vs0 pending marked residual point pp vs code live-then live-else q))))) ns))
-(pretty-print futamura3-tm)
-#|
-(equal? futamura1-tm target-tm)
 
+
+(equal? futamura1-tm target-tm)
 
 (define fc-example
   '((read name namelist valuelist)
@@ -53,6 +48,3 @@
 (equal? futamura1-fc target-fc)
 
 (pretty-print futamura1-fc)
-|#
-
-
