@@ -112,7 +112,6 @@
             (lb-error (return "Something is wrong"))
 
         (bb-end (:= residual (cons (reverse code) residual))
-                ;(:= q (println (length marked)))
                 (goto pending-cond))
 
     (pending-end (return (reverse residual)))))
