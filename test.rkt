@@ -5,9 +5,11 @@
 (require "tm-int.rkt")
 (require "mix.rkt")
 (require "live-var.rkt")
+(require "pretty-print.rkt")
 
 (define-namespace-anchor anc)
 (define ns (namespace-anchor->namespace anc))
+
 
 (define tm-example '((0 if 0 goto 3)
                      (1 right)
@@ -16,7 +18,6 @@
 
 (define futamura1-tm (eval '(int mix `(,tm-int (right_tape left_tape) ((instrs) (,tm-example)))) ns))
 (eval '(int futamura1-tm `((1 1 0 1 1 0 1))) ns)
-
 
 (define futamura2-tm (eval '(int mix `(,mix
                                        (vs0 pending marked residual point pp vs code live-then live-else q)
@@ -38,7 +39,6 @@
 (define futamura1-fc (eval '(int mix `(,fc-int (vals scope q expr cond) ((program) (,fc-example)))) ns))
 (eval '(int futamura1-fc `((b (a b c) (1 2 3)))) ns)
 
-
 (define futamura2-fc (eval '(int mix `(,mix
                                        (vs0 pending marked residual point pp vs code live-then live-else q)
                                        ((program division) (,fc-int (vals scope q expr cond))))) ns))
@@ -46,3 +46,8 @@
 (eval '(int target-fc `((b (a b c) (1 2 3)))) ns)
 
 (equal? futamura1-fc target-fc)
+
+(pretty-print futamura1-fc)
+
+
+
