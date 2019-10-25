@@ -11,7 +11,7 @@
       (let()
           (define orig-label (car label))
           (if (hash-has-key? duplicate-cnt orig-label)
-              (dict-set! duplicate-cnt orig-label ((dict-ref duplicate-cnt orig-label) + 1))
+              (dict-set! duplicate-cnt orig-label (+ (dict-ref duplicate-cnt orig-label) 1))
               (dict-set! duplicate-cnt orig-label 0))
           (define duplicates (dict-ref duplicate-cnt orig-label))
           (dict-set! new-labels label (string-append (~a orig-label) "_" (~a duplicates)))))
@@ -28,4 +28,3 @@
   (cons (car program)
         (for/list ([bb (cdr program)])
           (relabel-block bb))))
-
