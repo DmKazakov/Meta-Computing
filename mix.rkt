@@ -118,6 +118,7 @@
                 (goto pending-cond))
 
     (pending-end (return (reverse residual)))))
+<<<<<<< HEAD
 
 (define (reduce expr scope)
   (define (try-eval expr)
@@ -129,3 +130,5 @@
         [e e])))
   (define e (subst expr scope))
   (try-eval e))
+=======
+>>>>>>> 3de36dcb2405a7502902f96c074356ca15cc80a1
