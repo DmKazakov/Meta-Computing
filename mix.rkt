@@ -81,7 +81,8 @@
                        (if (static? var division) goto assign goto add-assign))
                 (assign (:= vs (dict-set vs var `',(int-expr expr vs)))
                         (goto bb-cond))
-                (add-assign (:= code (cons `(:= ,var ,(subst expr vs)) code))
+                (add-assign (:= evaled (reduce expr vs))
+                            (:= code (cons `(:= ,var ,evaled) code))
                             (goto bb-cond))
 
             (do-if (:= expr (cadr command))
@@ -99,20 +100,32 @@
                         (:= live-else (remove-dead vs (dict-ref live-vars else)))
                         (:= pending (add-unmarked `(,else ,live-else) pending marked))
                         (:= marked (cons `(,else ,live-else) marked))
-                        (:= code (cons `(if ,(subst expr vs) goto (,then ,live-then) goto (,else ,live-else)) code))
+                        (:= evaled (reduce expr vs))
+                        (:= code (cons `(if ,evaled goto (,then ,live-then) goto (,else ,live-else)) code))
                         (goto bb-cond))
 
             (do-goto (:= bb (dict-ref program (cadr command)))
                      (goto bb-cond))
 
-            (do-return (:= code (cons `(return ,(subst (cadr command) vs)) code))
+            (do-return (:= evaled (reduce (cadr command) vs))
+                       (:= code (cons `(return ,evaled) code))
                        (goto bb-cond))
 
             (error (return (string-append "Undefined instruction: " (~a type))))
             (lb-error (return "Something is wrong"))
 
         (bb-end (:= residual (cons (reverse code) residual))
-                ;(:= q (println (length marked)))
                 (goto pending-cond))
 
     (pending-end (return (reverse residual)))))
+
+(define (reduce expr scope)
+  (define (try-eval expr)
+    (with-handlers ([exn:fail? (lambda (exn) (match expr
+                                                [(list-rest e es) `(,(try-eval e) . ,(try-eval es))]
+                                                [e e]))])
+      (match expr
+        [(list-rest e es) `',(eval expr)]
+        [e e])))
+  (define e (subst expr scope))
+  (try-eval e))

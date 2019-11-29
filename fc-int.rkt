@@ -9,7 +9,7 @@
         (for ([val vals] [var vars])
           (dict-set! dict var `',val))
         dict)
-      (error "Length mismatch")))
+      (error "Length mismatch!")))
 
 (define (init-blocks blocks)
   (define dict (make-hash))
@@ -36,9 +36,9 @@
 (define (int-assignment assignment scope)
   (match assignment
     [`(:= ,var ,expr) (let()
-                        ;(when (equal? expr `(car pending)) (let() (display var) (display "\n") (display "\n")))
-                        ;(with-handlers ([exn:fail? (lambda (exn) ((printf "~a\n~a\n~a\n~a\n" exn scope var expr) (error ":(")))])
-                          (dict-set! scope var `',(int-expr expr scope)))]
+                          ;(cond
+                          ;  [(eq? var 'code) (displayln expr)])
+                        (dict-set! scope var `',(int-expr expr scope)))]
     [_ (error (string-append "Not an assignment: " (~a assignment)))]))
 
 (define (int-expr expr scope)
@@ -48,8 +48,26 @@
     (eval e)))
 
 (define (subst expr scope)
+  ;(printf "subst: ~a\n" expr)
   (match expr
+    [(list-rest 'quasiquote es) `(,(car expr) . ,(subst-quasiquote es scope))]
+    [(list-rest 'quote es) expr]
     [(list-rest e es) `(,(subst e scope) . ,(subst es scope))]
+    [e (if (dict-has-key? scope e) (dict-ref scope e) e)]))
+
+(define (subst-quasiquote expr scope)
+  ;(printf "subst-quasiquote ~a\n" expr)
+  (match expr
+    [(list-rest 'unquote es) `(,(car expr) . ,(subst-quasiquote-unquote es scope))]
+    [(list-rest e es) `(,(subst-quasiquote e scope) . ,(subst-quasiquote es scope))]
+    [e e]))
+
+(define (subst-quasiquote-unquote expr scope)
+  ;(printf "subst-quasiquote-unquote ~a\n" expr)
+  (match expr
+    [(list-rest 'quasiquote es) `(,(car expr) . ,(subst-quasiquote es scope))]
+    [(list-rest 'quote es) `(,(car expr) . ,(subst-quasiquote es scope))]
+    [(list-rest e es) `(,(subst-quasiquote-unquote e scope) . ,(subst-quasiquote-unquote es scope))]
     [e (if (dict-has-key? scope e) (dict-ref scope e) e)]))
 
 (define (int-jump jump scope blocks)

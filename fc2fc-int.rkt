@@ -21,9 +21,7 @@
                (if (equal? type `:=) goto int-assign3 goto check-if3))
 
     (int-assign3 (:= var (cadr stmt))
-                 (:= expr (caddr stmt))
-                 (:= expr (subst expr scope))
-                 (:= expr (eval expr))
+                 (:= expr (eval (subst (caddr stmt) scope)))
                  (:= q (dict-set! scope var `',expr))
                  (goto int-stmt3))
 
@@ -32,9 +30,7 @@
     (check-return3 (if (equal? type `return) goto int-return3 goto error3))
     (error3 (return (string-append "Undefined stmt type: " (~a type))))
 
-    (int-if3 (:= cond (cadr stmt))
-             (:= cond (subst cond scope))
-             (:= cond (eval cond))
+    (int-if3 (:= cond (eval (subst (cadr stmt) scope)))
              (:= then (cadddr stmt))
              (:= else (list-ref stmt 5))
              (if cond goto goto-then3 goto goto-else3))
@@ -46,6 +42,4 @@
     (int-goto3 (:= label (cadr stmt))
                (goto int-block3))
 
-    (int-return3 (:= expr (cadr stmt))
-                 (:= expr (subst expr scope))
-                 (return (eval expr)))))
+    (int-return3 (return (eval (subst (cadr stmt) scope))))))
