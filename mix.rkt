@@ -1,6 +1,7 @@
 #lang racket
 
 (require "fc-int.rkt")
+(require "live-var.rkt")
 
 (provide (all-defined-out))
 
@@ -13,11 +14,25 @@
         dict)
       (error "Length mismatch")))
 
+(define (get-dynamic-labels program division)
+  (define labels (mutable-set (caadr program)))
+  (for* ([bb (cdr program)]
+        [command (cdr bb)]
+        #:when (and (equal? (car command) `if) (not (static? (cadr command) division))))
+    (set-add! labels (cadddr command))
+    (set-add! labels (list-ref command 5)))
+  (for/list ([label labels]) label))
+
 (define (get-labels program)
   (for/list ([bb (cdr program)]) (car bb)))
 
 (define (add-unmarked x xs marks)
   (if (set-member? marks x) xs (cons x xs)))
+
+(define (remove-dead vs live)
+  (for/hash ([(k v) (in-hash vs)]
+             #:when (set-member? live k))
+    (values k v)))
 
 (define (static? expr division)
   (match expr
@@ -31,6 +46,7 @@
           (:= pending `((,pp0 ,(init-vars-immutable (car vs0) (cadr vs0)))))
           (:= marked `(,(car pending)))
           (:= residual `(,(cons `read (set-subtract (cdar program) (car vs0)))))
+          (:= live-vars (get-live-vars program))
           (goto pending-cond))
 
     (pending-cond (if (empty? pending) goto pending-end goto pending-body))
@@ -38,16 +54,14 @@
                   (:= pending (cdr pending))
                   (:= pp (car point))
                   (:= vs (cadr point))
-                  (:= labels (get-labels program))
-                  (:= pps (car labels))
-                  (:= labels (cdr labels))
                   (:= code `(,point))
-                  (goto pps-cond))
+                  (:= labels (get-dynamic-labels program division))
+                  (goto lb-check))
 
-        (pps-cond (if (equal? pp pps) goto pps-end goto pps-body))
-        (pps-body (:= pps (car labels))
+        (lb-check (if (empty? labels) goto lb-error goto pps-cond))
+        (pps-cond (:= pps (car labels))
                   (:= labels (cdr labels))
-                  (goto pps-cond))
+                  (if (equal? pp pps) goto pps-end goto lb-check))
         (pps-end  (:= bb (dict-ref program pps))
                   (goto bb-cond))
         
@@ -67,7 +81,8 @@
                        (if (static? var division) goto assign goto add-assign))
                 (assign (:= vs (dict-set vs var `',(int-expr expr vs)))
                         (goto bb-cond))
-                (add-assign (:= code (cons `(:= ,var ,(subst expr vs)) code))
+                (add-assign (:= evaled (reduce expr vs))
+                            (:= code (cons `(:= ,var ,evaled) code))
                             (goto bb-cond))
 
             (do-if (:= expr (cadr command))
@@ -79,22 +94,38 @@
                                (goto bb-cond))
                     (goto-else (:= bb (dict-ref program else))
                                (goto bb-cond))
-                (add-if (:= pending (add-unmarked `(,then ,vs) pending marked))
-                        (:= marked (cons `(,then ,vs) marked))
-                        (:= pending (add-unmarked `(,else ,vs) pending marked))
-                        (:= marked (cons `(,else ,vs) marked))
-                        (:= code (cons `(if ,(subst expr vs) goto (,then ,vs) goto (,else ,vs)) code))
+                (add-if (:= live-then (remove-dead vs (dict-ref live-vars then)))
+                        (:= pending (add-unmarked `(,then ,live-then) pending marked))
+                        (:= marked (cons `(,then ,live-then) marked))
+                        (:= live-else (remove-dead vs (dict-ref live-vars else)))
+                        (:= pending (add-unmarked `(,else ,live-else) pending marked))
+                        (:= marked (cons `(,else ,live-else) marked))
+                        (:= evaled (reduce expr vs))
+                        (:= code (cons `(if ,evaled goto (,then ,live-then) goto (,else ,live-else)) code))
                         (goto bb-cond))
 
             (do-goto (:= bb (dict-ref program (cadr command)))
                      (goto bb-cond))
 
-            (do-return (:= code (cons `(return ,(subst (cadr command) vs)) code))
+            (do-return (:= evaled (reduce (cadr command) vs))
+                       (:= code (cons `(return ,evaled) code))
                        (goto bb-cond))
 
             (error (return (string-append "Undefined instruction: " (~a type))))
+            (lb-error (return "Something is wrong"))
 
         (bb-end (:= residual (cons (reverse code) residual))
                 (goto pending-cond))
 
     (pending-end (return (reverse residual)))))
+
+(define (reduce expr scope)
+  (define (try-eval expr)
+    (with-handlers ([exn:fail? (lambda (exn) (match expr
+                                                [(list-rest e es) `(,(try-eval e) . ,(try-eval es))]
+                                                [e e]))])
+      (match expr
+        [(list-rest e es) `',(eval expr)]
+        [e e])))
+  (define e (subst expr scope))
+  (try-eval e))

@@ -9,7 +9,7 @@
         (for ([val vals] [var vars])
           (dict-set! dict var `',val))
         dict)
-      (error "Length mismatch")))
+      (error "Length mismatch!")))
 
 (define (init-blocks blocks)
   (define dict (make-hash))
@@ -30,19 +30,44 @@
      (let()
        (for ([assignment assignments])
          (int-assignment assignment scope))
-       (int-jump jump scope blocks))]))
+       (int-jump jump scope blocks))]
+    [_ (error (string-append "Empty block: " (~a label)))]))
 
 (define (int-assignment assignment scope)
   (match assignment
-    [`(:= ,var ,expr) (dict-set! scope var `',(int-expr expr scope))]))
+    [`(:= ,var ,expr) (let()
+                          ;(cond
+                          ;  [(eq? var 'code) (displayln expr)])
+                        (dict-set! scope var `',(int-expr expr scope)))]
+    [_ (error (string-append "Not an assignment: " (~a assignment)))]))
 
 (define (int-expr expr scope)
   (define e (subst expr scope))
-  (eval e))
+  (with-handlers ([exn:fail? (lambda (exn) ((printf "~a\n~a\n~a\n~a\n\n" exn expr e scope)
+                                            (error (~a expr))))])
+    (eval e)))
 
 (define (subst expr scope)
+  ;(printf "subst: ~a\n" expr)
   (match expr
+    [(list-rest 'quasiquote es) `(,(car expr) . ,(subst-quasiquote es scope))]
+    [(list-rest 'quote es) expr]
     [(list-rest e es) `(,(subst e scope) . ,(subst es scope))]
+    [e (if (dict-has-key? scope e) (dict-ref scope e) e)]))
+
+(define (subst-quasiquote expr scope)
+  ;(printf "subst-quasiquote ~a\n" expr)
+  (match expr
+    [(list-rest 'unquote es) `(,(car expr) . ,(subst-quasiquote-unquote es scope))]
+    [(list-rest e es) `(,(subst-quasiquote e scope) . ,(subst-quasiquote es scope))]
+    [e e]))
+
+(define (subst-quasiquote-unquote expr scope)
+  ;(printf "subst-quasiquote-unquote ~a\n" expr)
+  (match expr
+    [(list-rest 'quasiquote es) `(,(car expr) . ,(subst-quasiquote es scope))]
+    [(list-rest 'quote es) `(,(car expr) . ,(subst-quasiquote es scope))]
+    [(list-rest e es) `(,(subst-quasiquote-unquote e scope) . ,(subst-quasiquote-unquote es scope))]
     [e (if (dict-has-key? scope e) (dict-ref scope e) e)]))
 
 (define (int-jump jump scope blocks)
